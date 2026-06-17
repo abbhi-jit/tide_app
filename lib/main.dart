@@ -111,24 +111,24 @@ class Task {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'notes': notes,
-    'priority': priority,
-    'category': category,
-    'dueDate': dueDate.toIso8601String(),
-    'isDone': isDone,
-  };
+        'id': id,
+        'title': title,
+        'notes': notes,
+        'priority': priority,
+        'category': category,
+        'dueDate': dueDate.toIso8601String(),
+        'isDone': isDone,
+      };
 
   factory Task.fromJson(Map<String, dynamic> j) => Task(
-    id: j['id'] as String,
-    title: j['title'] as String,
-    notes: (j['notes'] as String?) ?? '',
-    priority: j['priority'] as String,
-    category: j['category'] as String,
-    dueDate: DateTime.parse(j['dueDate'] as String),
-    isDone: (j['isDone'] as bool?) ?? false,
-  );
+        id: j['id'] as String,
+        title: j['title'] as String,
+        notes: (j['notes'] as String?) ?? '',
+        priority: j['priority'] as String,
+        category: j['category'] as String,
+        dueDate: DateTime.parse(j['dueDate'] as String),
+        isDone: (j['isDone'] as bool?) ?? false,
+      );
 }
 
 // ── 4. LOCAL STORAGE HELPER ─────────────────────────────────────────────────
@@ -228,7 +228,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
         Positioned.fill(
           child: AnimatedBuilder(
             animation: _controller,
-            builder: (_, _) {
+            builder: (_, __) {
               return CustomPaint(
                 painter: _OrbPainter(_controller.value),
               );
@@ -239,7 +239,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
         Positioned.fill(
           child: AnimatedBuilder(
             animation: _controller,
-            builder: (_, _) {
+            builder: (_, __) {
               final t = (math.sin(_controller.value * math.pi * 2) + 1) / 2;
               return DecoratedBox(
                 decoration: BoxDecoration(
@@ -279,19 +279,63 @@ class _OrbPainter extends CustomPainter {
   _OrbPainter(this.t);
 
   static const _orbs = <_Orb>[
-    _Orb(baseX: 0.15, baseY: 0.10, driftX: 0.06, driftY: 0.08,
-         radius: 0.18, colorIdx: 0, opacity: 0.07, speed: 1.0, phase: 0.0),
-    _Orb(baseX: 0.82, baseY: 0.25, driftX: 0.05, driftY: 0.07,
-         radius: 0.14, colorIdx: 1, opacity: 0.06, speed: 0.7, phase: 1.2),
-    _Orb(baseX: 0.30, baseY: 0.52, driftX: 0.08, driftY: 0.05,
-         radius: 0.22, colorIdx: 0, opacity: 0.05, speed: 0.5, phase: 2.5),
-    _Orb(baseX: 0.78, baseY: 0.70, driftX: 0.04, driftY: 0.06,
-         radius: 0.12, colorIdx: 2, opacity: 0.05, speed: 0.8, phase: 3.8),
-    _Orb(baseX: 0.50, baseY: 0.88, driftX: 0.07, driftY: 0.04,
-         radius: 0.16, colorIdx: 1, opacity: 0.04, speed: 0.6, phase: 5.0),
+    _Orb(
+        baseX: 0.15,
+        baseY: 0.10,
+        driftX: 0.06,
+        driftY: 0.08,
+        radius: 0.18,
+        colorIdx: 0,
+        opacity: 0.07,
+        speed: 1.0,
+        phase: 0.0),
+    _Orb(
+        baseX: 0.82,
+        baseY: 0.25,
+        driftX: 0.05,
+        driftY: 0.07,
+        radius: 0.14,
+        colorIdx: 1,
+        opacity: 0.06,
+        speed: 0.7,
+        phase: 1.2),
+    _Orb(
+        baseX: 0.30,
+        baseY: 0.52,
+        driftX: 0.08,
+        driftY: 0.05,
+        radius: 0.22,
+        colorIdx: 0,
+        opacity: 0.05,
+        speed: 0.5,
+        phase: 2.5),
+    _Orb(
+        baseX: 0.78,
+        baseY: 0.70,
+        driftX: 0.04,
+        driftY: 0.06,
+        radius: 0.12,
+        colorIdx: 2,
+        opacity: 0.05,
+        speed: 0.8,
+        phase: 3.8),
+    _Orb(
+        baseX: 0.50,
+        baseY: 0.88,
+        driftX: 0.07,
+        driftY: 0.04,
+        radius: 0.16,
+        colorIdx: 1,
+        opacity: 0.04,
+        speed: 0.6,
+        phase: 5.0),
   ];
 
-  static const _palette = [GlassColors.cyan, GlassColors.violet, GlassColors.coral];
+  static const _palette = [
+    GlassColors.cyan,
+    GlassColors.violet,
+    GlassColors.coral
+  ];
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -762,14 +806,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _fieldLabel(String text) => Text(
-    text,
-    style: const TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.bold,
-      color: GlassColors.textMuted,
-      letterSpacing: 0,
-    ),
-  );
+        text,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: GlassColors.textMuted,
+          letterSpacing: 0,
+        ),
+      );
 }
 
 // ── CENTRAL SHELL AND NAVIGATION ARCHITECTURE ───────────────────────────────
@@ -815,75 +859,75 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   }
 
   List<Task> _defaultTasks() => [
-    Task(
-      id: '1',
-      title: 'Morning beach walk & meditation',
-      category: 'Today',
-      priority: 'Low',
-      dueDate: DateTime.now(),
-      notes:
-          'Take a 30-minute peaceful walk along the shoreline. Practice deep breathing.',
-    ),
-    Task(
-      id: '2',
-      title: 'Plan summer team retreat',
-      category: 'Work',
-      priority: 'High',
-      dueDate: DateTime.now().add(const Duration(days: 4)),
-      notes:
-          'Prepare the outline budget, dates, and look into booking a coastal lodge.',
-    ),
-    Task(
-      id: '3',
-      title: 'Water the patio ferns',
-      category: 'Personal',
-      priority: 'Low',
-      dueDate: DateTime.now(),
-      notes: 'Make sure soil is evenly damp. Add balanced fertilizer.',
-    ),
-    Task(
-      id: '4',
-      title: 'Sync with design team on Tide UI',
-      category: 'Work',
-      priority: 'Med',
-      dueDate: DateTime.now().add(const Duration(days: 1)),
-      notes:
-          'Confirm hex mapping tokens and discuss feedback on card components.',
-    ),
-    Task(
-      id: '5',
-      title: 'Review Flutter architecture docs',
-      category: 'Study',
-      priority: 'Med',
-      dueDate: DateTime.now().add(const Duration(days: 2)),
-      notes: 'Deep dive into state management patterns and best practices.',
-    ),
-    Task(
-      id: '6',
-      title: 'Write Flutter unit tests',
-      category: 'Work',
-      priority: 'High',
-      dueDate: DateTime.now().add(const Duration(days: 2)),
-      notes:
-          'Create smoke and regression checks covering onboarding and navigation.',
-    ),
-    Task(
-      id: '7',
-      title: 'Evening yoga session',
-      category: 'Today',
-      priority: 'Low',
-      dueDate: DateTime.now(),
-      notes: 'Unwind with a 40-minute ocean-side yoga routine.',
-    ),
-    Task(
-      id: '8',
-      title: 'Study data structures — Chapter 5',
-      category: 'Study',
-      priority: 'High',
-      dueDate: DateTime.now().add(const Duration(days: 3)),
-      notes: 'Focus on trees and graphs for upcoming exam prep.',
-    ),
-  ];
+        Task(
+          id: '1',
+          title: 'Morning beach walk & meditation',
+          category: 'Today',
+          priority: 'Low',
+          dueDate: DateTime.now(),
+          notes:
+              'Take a 30-minute peaceful walk along the shoreline. Practice deep breathing.',
+        ),
+        Task(
+          id: '2',
+          title: 'Plan summer team retreat',
+          category: 'Work',
+          priority: 'High',
+          dueDate: DateTime.now().add(const Duration(days: 4)),
+          notes:
+              'Prepare the outline budget, dates, and look into booking a coastal lodge.',
+        ),
+        Task(
+          id: '3',
+          title: 'Water the patio ferns',
+          category: 'Personal',
+          priority: 'Low',
+          dueDate: DateTime.now(),
+          notes: 'Make sure soil is evenly damp. Add balanced fertilizer.',
+        ),
+        Task(
+          id: '4',
+          title: 'Sync with design team on Tide UI',
+          category: 'Work',
+          priority: 'Med',
+          dueDate: DateTime.now().add(const Duration(days: 1)),
+          notes:
+              'Confirm hex mapping tokens and discuss feedback on card components.',
+        ),
+        Task(
+          id: '5',
+          title: 'Review Flutter architecture docs',
+          category: 'Study',
+          priority: 'Med',
+          dueDate: DateTime.now().add(const Duration(days: 2)),
+          notes: 'Deep dive into state management patterns and best practices.',
+        ),
+        Task(
+          id: '6',
+          title: 'Write Flutter unit tests',
+          category: 'Work',
+          priority: 'High',
+          dueDate: DateTime.now().add(const Duration(days: 2)),
+          notes:
+              'Create smoke and regression checks covering onboarding and navigation.',
+        ),
+        Task(
+          id: '7',
+          title: 'Evening yoga session',
+          category: 'Today',
+          priority: 'Low',
+          dueDate: DateTime.now(),
+          notes: 'Unwind with a 40-minute ocean-side yoga routine.',
+        ),
+        Task(
+          id: '8',
+          title: 'Study data structures — Chapter 5',
+          category: 'Study',
+          priority: 'High',
+          dueDate: DateTime.now().add(const Duration(days: 3)),
+          notes: 'Focus on trees and graphs for upcoming exam prep.',
+        ),
+      ];
 
   Future<void> _persistTasks() => TaskStorage.save(_globalTasks);
 
@@ -1632,9 +1676,9 @@ class _TaskListScreenTabState extends State<TaskListScreenTab> {
                                               Container(
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 2,
-                                                    ),
+                                                  horizontal: 8,
+                                                  vertical: 2,
+                                                ),
                                                 decoration: BoxDecoration(
                                                   color: task.categoryColor
                                                       .withValues(alpha: 0.18),
@@ -1838,32 +1882,33 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Widget _badge(String label, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.18),
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: color.withValues(alpha: 0.40)),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.40)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w800, color: color),
+        ),
+      );
 
   Widget _iconRow(IconData icon, String text) => Row(
-    children: [
-      Icon(icon, color: GlassColors.textMuted, size: 18),
-      const SizedBox(width: 8),
-      Text(
-        text,
-        style: const TextStyle(
-          color: GlassColors.textMuted,
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
-        ),
-      ),
-    ],
-  );
+        children: [
+          Icon(icon, color: GlassColors.textMuted, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: const TextStyle(
+              color: GlassColors.textMuted,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      );
 }
 
 // ── SCREEN 06: ADD TASK SHEET ────────────────────────────────────────────────
@@ -1874,8 +1919,7 @@ class AddTaskSheet extends StatefulWidget {
     String priority,
     String category,
     DateTime dueDate,
-  )
-  onSave;
+  ) onSave;
 
   const AddTaskSheet({super.key, required this.onSave});
 
@@ -2102,14 +2146,14 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   }
 
   Widget _sectionLabel(String text) => Text(
-    text,
-    style: const TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.bold,
-      color: GlassColors.textMuted,
-      letterSpacing: 0,
-    ),
-  );
+        text,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: GlassColors.textMuted,
+          letterSpacing: 0,
+        ),
+      );
 
   Widget _glassPill({
     required String label,
@@ -2357,17 +2401,17 @@ class SettingsScreenTab extends StatelessWidget {
   }
 
   Widget _sectionLabel(String text) => Align(
-    alignment: Alignment.centerLeft,
-    child: Text(
-      text,
-      style: const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.bold,
-        color: GlassColors.textMuted,
-        letterSpacing: 0,
-      ),
-    ),
-  );
+        alignment: Alignment.centerLeft,
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: GlassColors.textMuted,
+            letterSpacing: 0,
+          ),
+        ),
+      );
 
   Widget _toggleCard({
     required BuildContext context,
@@ -2405,7 +2449,7 @@ class SettingsScreenTab extends StatelessWidget {
             Switch(
               value: value,
               onChanged: onChanged,
-              activeThumbColor: GlassColors.cyan,
+              activeColor: GlassColors.cyan,
               activeTrackColor: GlassColors.cyan.withValues(alpha: 0.30),
               inactiveThumbColor: GlassColors.textMuted,
               inactiveTrackColor: GlassColors.glassFill,
