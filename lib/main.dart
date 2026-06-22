@@ -2616,7 +2616,7 @@ class AssistantService {
       return response.text ?? 'I could not generate a response.';
     } catch (e) {
       debugPrint('AI Error: $e');
-      return 'Sorry, I encountered an error connecting to the AI service.';
+      return 'Sorry, I encountered an error: $e';
     }
   }
 }
