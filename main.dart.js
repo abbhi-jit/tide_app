@@ -104705,7 +104705,7 @@ s($,"b7u","aHm",()=>A.aZ6())
 s($,"b6V","cw",()=>A.ix())
 s($,"b7o","aRi",()=>new A.t())
 s($,"b50","aQ8",()=>{var q=null,p=A.aUa("system",A.b([A.aZp("You are a helpful, concise AI assistant built directly into the Tide task management app. Your job is to assist the user with managing their tasks and schedule. You will be provided with the user's current tasks in the system context. Base all your summaries and answers strictly on the app data provided.")],t.Uz)),o=A.b0o("https","generativelanguage.googleapis.com","v1beta",q)
-return new A.a9X(A.aW1("gemini-1.5-flash"),B.L6,q,q,new A.ab2("AQ.Ab8RN6LqVKBnz8ZLBDJ-ALyIuvce_CcSGQsgimV6RYIKVw0X2g",q),o,p,q)})})();(function nativeSupport(){!function(){var s=function(a){var m={}
+return new A.a9X(A.aW1("gemini-1.5-flash"),B.L6,q,q,new A.ab2("AQ.Ab8RN6KnTc87y0JXJmx-5AkBGqx80x-g5oGWkmygRZJl3HQYkA",q),o,p,q)})})();(function nativeSupport(){!function(){var s=function(a){var m={}
 m[a]=1
 return Object.keys(hunkHelpers.convertToFastObject(m))[0]}
 v.getIsolateTag=function(a){return s("___dart_"+a+v.isolateTag)}
