@@ -4,8 +4,25 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_vertexai/firebase_vertexai.dart';
 
-void main() => runApp(const TideApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: 'YOUR_API_KEY',
+        appId: 'YOUR_APP_ID',
+        messagingSenderId: 'YOUR_SENDER_ID',
+        projectId: 'YOUR_PROJECT_ID',
+      ),
+    );
+  } catch (e) {
+    debugPrint('Firebase init error: $e');
+  }
+  runApp(const TideApp());
+}
 
 // ── 1. DESIGN TOKENS ────────────────────────────────────────────────────────
 class GlassColors {
@@ -1055,17 +1072,25 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 10),
-        child: GlassCard(
-          borderRadius: 20,
-          padding: EdgeInsets.zero,
-          fillColor: GlassColors.cyan.withValues(alpha: 0.18),
-          borderColor: GlassColors.cyan.withValues(alpha: 0.50),
-          child: FloatingActionButton(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            onPressed: _openAddTaskSheet,
-            child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const FloatingChatWidget(),
+            const SizedBox(height: 12),
+            GlassCard(
+              borderRadius: 20,
+              padding: EdgeInsets.zero,
+              fillColor: GlassColors.cyan.withValues(alpha: 0.18),
+              borderColor: GlassColors.cyan.withValues(alpha: 0.50),
+              child: FloatingActionButton(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                onPressed: _openAddTaskSheet,
+                child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+              ),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: ClipRect(
@@ -2310,36 +2335,6 @@ class SettingsScreenTab extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  // XP status badge
-                  GlassCard(
-                    borderRadius: 12,
-                    fillColor: GlassColors.cyan.withValues(alpha: 0.12),
-                    borderColor: GlassColors.cyan.withValues(alpha: 0.30),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.bolt_rounded,
-                          color: GlassColors.cyan,
-                          size: 20,
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          'Tide Level 3 • 1200 XP',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: GlassColors.cyan,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -2523,6 +2518,202 @@ class SettingsScreenTab extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── FIREBASE AI ASSISTANT SERVICE ───────────────────────────────────────────
+class AssistantService {
+  static final _model = FirebaseVertexAI.instance.generativeModel(
+    model: 'gemini-1.5-flash',
+    systemInstruction: Content.system(
+      'You are a helpful, concise AI assistant built directly into the Tide task management app. '
+      'Your job is to assist the user with managing their tasks and schedule. '
+      'You will be provided with the user\'s current tasks in the system context. '
+      'Base all your summaries and answers strictly on the app data provided.',
+    ),
+  );
+
+  static Future<String> sendMessage(String message) async {
+    try {
+      final tasks = await TaskStorage.load();
+      final contextText = tasks.isEmpty
+          ? 'The user currently has no tasks.'
+          : 'User tasks:\n${tasks.map((t) => '- [${t.category}] ${t.title} (Due: ${t.dueDate.toIso8601String().split('T').first}, Done: ${t.isDone})').join('\n')}';
+
+      final prompt = 'App Context:\n$contextText\n\nUser Message: $message';
+      final response = await _model.generateContent([Content.text(prompt)]);
+      return response.text ?? 'I could not generate a response.';
+    } catch (e) {
+      debugPrint('AI Error: $e');
+      return 'Sorry, I encountered an error connecting to the AI service.';
+    }
+  }
+}
+
+// ── FLOATING CHAT WIDGET ────────────────────────────────────────────────────
+class FloatingChatWidget extends StatefulWidget {
+  const FloatingChatWidget({super.key});
+
+  @override
+  State<FloatingChatWidget> createState() => _FloatingChatWidgetState();
+}
+
+class _FloatingChatWidgetState extends State<FloatingChatWidget> {
+  bool _isOpen = false;
+  final _controller = TextEditingController();
+  final List<Map<String, String>> _messages = [];
+  bool _isLoading = false;
+
+  void _toggleChat() => setState(() => _isOpen = !_isOpen);
+
+  Future<void> _sendMessage() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() {
+      _messages.add({'role': 'user', 'text': text});
+      _controller.clear();
+      _isLoading = true;
+    });
+
+    final response = await AssistantService.sendMessage(text);
+
+    setState(() {
+      _messages.add({'role': 'ai', 'text': response});
+      _isLoading = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isOpen) {
+      return GlassCard(
+        borderRadius: 20,
+        padding: EdgeInsets.zero,
+        fillColor: GlassColors.violet.withValues(alpha: 0.18),
+        borderColor: GlassColors.violet.withValues(alpha: 0.50),
+        child: FloatingActionButton(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          onPressed: _toggleChat,
+          child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 28),
+        ),
+      );
+    }
+
+    return GlassCard(
+      padding: const EdgeInsets.all(12),
+      borderRadius: 24,
+      fillColor: GlassColors.bgMid.withValues(alpha: 0.85),
+      child: SizedBox(
+        width: 320,
+        height: 400,
+        child: Column(
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.auto_awesome_rounded, color: GlassColors.violet, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Tide Assistant',
+                      style: TextStyle(
+                        color: GlassColors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: GlassColors.textMuted, size: 20),
+                  onPressed: _toggleChat,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            const Divider(color: GlassColors.glassBorder, height: 24),
+            // Message List
+            Expanded(
+              child: ListView.builder(
+                reverse: true,
+                itemCount: _messages.length,
+                itemBuilder: (context, index) {
+                  final msg = _messages[_messages.length - 1 - index];
+                  final isUser = msg['role'] == 'user';
+                  return Align(
+                    alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isUser 
+                          ? GlassColors.cyan.withValues(alpha: 0.2)
+                          : GlassColors.glassFill,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isUser 
+                            ? GlassColors.cyan.withValues(alpha: 0.4)
+                            : GlassColors.glassBorder,
+                        ),
+                      ),
+                      child: Text(
+                        msg['text'] ?? '',
+                        style: const TextStyle(
+                          color: GlassColors.textPrimary,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: SizedBox(
+                  width: 20, 
+                  height: 20, 
+                  child: CircularProgressIndicator(strokeWidth: 2, color: GlassColors.violet)
+                ),
+              ),
+            const SizedBox(height: 8),
+            // Input Area
+            Row(
+              children: [
+                Expanded(
+                  child: GlassTextField(
+                    controller: _controller,
+                    hintText: 'Ask about tasks...',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GlassCard(
+                  borderRadius: 16,
+                  padding: EdgeInsets.zero,
+                  fillColor: GlassColors.violet.withValues(alpha: 0.2),
+                  child: IconButton(
+                    icon: const Icon(Icons.send_rounded, color: GlassColors.textPrimary, size: 20),
+                    onPressed: _sendMessage,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
