@@ -18,10 +18,12 @@ void main() async {
   try {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
-        apiKey: 'YOUR_API_KEY',
-        appId: 'YOUR_APP_ID',
-        messagingSenderId: 'YOUR_SENDER_ID',
-        projectId: 'YOUR_PROJECT_ID',
+        apiKey: 'AIzaSyDlWOKStFVgAnMAbDbhgI-ZI10Py-SQHwg',
+        authDomain: 'tideapp-4b5f0.firebaseapp.com',
+        projectId: 'tideapp-4b5f0',
+        storageBucket: 'tideapp-4b5f0.firebasestorage.app',
+        messagingSenderId: '937799039554',
+        appId: '1:937799039554:web:6703114a5c12506daf0bdb',
       ),
     );
   } catch (e) {
