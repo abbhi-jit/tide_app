@@ -2583,7 +2583,7 @@ class SettingsScreenTab extends StatelessWidget {
 // ── GOOGLE GENERATIVE AI ASSISTANT SERVICE ──────────────────────────────────
 class AssistantService {
   // Hardcoded API key as requested by the user
-  static const _apiKey = 'AQ.Ab8RN6LqVKBnz8ZLBDJ-ALyIuvce_CcSGQsgimV6RYIKVw0X2g';
+  static const _apiKey = 'AQ.Ab8RN6KnTc87y0JXJmx-5AkBGqx80x-g5oGWkmygRZJl3HQYkA';
 
   static final _model = GenerativeModel(
     model: 'gemini-1.5-flash',
