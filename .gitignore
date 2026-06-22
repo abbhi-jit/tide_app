@@ -46,3 +46,7 @@ app.*.map.json
 
 # Firebase executable
 firebase.exe.exe
+
+# Environment variables
+.env
+key.json

@@ -7,9 +7,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load environment variables securely
+  await dotenv.load(fileName: ".env");
+
   try {
     await Firebase.initializeApp(
       options: const FirebaseOptions(
@@ -2603,8 +2608,8 @@ class SettingsScreenTab extends StatelessWidget {
 
 // ── GOOGLE GENERATIVE AI ASSISTANT SERVICE ──────────────────────────────────
 class AssistantService {
-  // Replace this with your actual Gemini API Key from Google AI Studio
-  static const _apiKey = 'YOUR_GEMINI_API_KEY';
+  // Pulls the key securely from the hidden .env file!
+  static final _apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
 
   static final _model = GenerativeModel(
     model: 'gemini-1.5-flash',
@@ -2618,8 +2623,8 @@ class AssistantService {
   );
 
   static Future<String> sendMessage(String message) async {
-    if (_apiKey == 'YOUR_GEMINI_API_KEY') {
-      return 'Please replace YOUR_GEMINI_API_KEY in lib/main.dart with your actual API key.';
+    if (_apiKey.isEmpty || _apiKey == 'YOUR_GEMINI_API_KEY_HERE') {
+      return 'Please replace YOUR_GEMINI_API_KEY_HERE in the .env file with your actual API key.';
     }
 
     try {
