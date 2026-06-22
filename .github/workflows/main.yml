@@ -13,6 +13,8 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+      - name: Create .env file
+        run: echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
       - run: flutter pub get
       - run: flutter build web --base-href /tide_app/
       - uses: peaceiris/actions-gh-pages@v3
