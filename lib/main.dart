@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -2601,22 +2601,36 @@ class SettingsScreenTab extends StatelessWidget {
   }
 }
 
-// ── FIREBASE CLOUD FUNCTIONS AI PROXY ───────────────────────────────────────
+// ── GOOGLE GENERATIVE AI ASSISTANT SERVICE ──────────────────────────────────
 class AssistantService {
+  // Replace this with your actual Gemini API Key from Google AI Studio
+  static const _apiKey = 'YOUR_GEMINI_API_KEY';
+
+  static final _model = GenerativeModel(
+    model: 'gemini-1.5-flash',
+    apiKey: _apiKey,
+    systemInstruction: Content.system(
+      'You are a helpful, concise AI assistant built directly into the Tide task management app. '
+      'Your job is to assist the user with managing their tasks and schedule. '
+      'You will be provided with the user\'s current tasks in the system context. '
+      'Base all your summaries and answers strictly on the app data provided.',
+    ),
+  );
+
   static Future<String> sendMessage(String message) async {
+    if (_apiKey == 'YOUR_GEMINI_API_KEY') {
+      return 'Please replace YOUR_GEMINI_API_KEY in lib/main.dart with your actual API key.';
+    }
+
     try {
       final tasks = await TaskStorage.load();
       final contextText = tasks.isEmpty
           ? 'The user currently has no tasks.'
           : 'User tasks:\n${tasks.map((t) => '- [${t.category}] ${t.title} (Due: ${t.dueDate.toIso8601String().split('T').first}, Done: ${t.isDone})').join('\n')}';
 
-      final callable = FirebaseFunctions.instance.httpsCallable('askAssistant');
-      final response = await callable.call(<String, dynamic>{
-        'message': message,
-        'contextText': contextText,
-      });
-      
-      return response.data['response'] as String;
+      final prompt = 'App Context:\n$contextText\n\nUser Message: $message';
+      final response = await _model.generateContent([Content.text(prompt)]);
+      return response.text ?? 'I could not generate a response.';
     } catch (e) {
       debugPrint('AI Error: $e');
       return 'Sorry, I encountered an error connecting to the AI service.';
