@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_vertexai/firebase_vertexai.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -2601,10 +2601,14 @@ class SettingsScreenTab extends StatelessWidget {
   }
 }
 
-// ── FIREBASE AI ASSISTANT SERVICE ───────────────────────────────────────────
+// ── GOOGLE GENERATIVE AI ASSISTANT SERVICE ──────────────────────────────────
 class AssistantService {
-  static final _model = FirebaseVertexAI.instance.generativeModel(
+  // Replace this with your actual Gemini API Key from Google AI Studio
+  static const _apiKey = 'YOUR_GEMINI_API_KEY';
+
+  static final _model = GenerativeModel(
     model: 'gemini-1.5-flash',
+    apiKey: _apiKey,
     systemInstruction: Content.system(
       'You are a helpful, concise AI assistant built directly into the Tide task management app. '
       'Your job is to assist the user with managing their tasks and schedule. '
@@ -2614,6 +2618,10 @@ class AssistantService {
   );
 
   static Future<String> sendMessage(String message) async {
+    if (_apiKey == 'YOUR_GEMINI_API_KEY') {
+      return 'Please replace YOUR_GEMINI_API_KEY in lib/main.dart with your actual API key.';
+    }
+
     try {
       final tasks = await TaskStorage.load();
       final contextText = tasks.isEmpty
