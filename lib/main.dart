@@ -2582,8 +2582,8 @@ class SettingsScreenTab extends StatelessWidget {
 
 // ── GOOGLE GENERATIVE AI ASSISTANT SERVICE ──────────────────────────────────
 class AssistantService {
-  // Pulls the key securely from the environment using --dart-define
-  static const _apiKey = String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
+  // Hardcoded API key as requested by the user
+  static const _apiKey = 'AQ.Ab8RN6LqVKBnz8ZLBDJ-ALyIuvce_CcSGQsgimV6RYIKVw0X2g';
 
   static final _model = GenerativeModel(
     model: 'gemini-1.5-flash',

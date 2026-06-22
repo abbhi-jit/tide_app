@@ -14,7 +14,7 @@ jobs:
         with:
           channel: 'stable'
       - run: flutter pub get
-      - run: flutter build web --base-href /tide_app/ --dart-define=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
+      - run: flutter build web --base-href /tide_app/
       - uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
