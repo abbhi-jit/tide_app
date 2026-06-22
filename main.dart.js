@@ -29487,7 +29487,8 @@ case 4:p=3
 c=o.pop()
 j=A.a3(c)
 A.aQ4().$1("AI Error: "+A.j(j))
-q="Sorry, I encountered an error connecting to the AI service."
+d=A.j(j)
+q="Sorry, I encountered an error: "+d
 s=1
 break
 s=6
