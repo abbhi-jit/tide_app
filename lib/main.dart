@@ -1,11 +1,12 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -148,24 +149,46 @@ class Task {
       );
 }
 
-// ── 4. LOCAL STORAGE HELPER ─────────────────────────────────────────────────
+// ── 4. FIRESTORE SERVICE ─────────────────────────────────────────────────
 class TaskStorage {
-  static const _key = 'tide_tasks_v1';
-
   static Future<void> save(List<Task> tasks) async {
-    final prefs = await SharedPreferences.getInstance();
-    final encoded = jsonEncode(tasks.map((t) => t.toJson()).toList());
-    await prefs.setString(_key, encoded);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final batch = FirebaseFirestore.instance.batch();
+    final tasksRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('tasks');
+        
+    for (var task in tasks) {
+      batch.set(tasksRef.doc(task.id), task.toJson());
+    }
+    await batch.commit();
   }
 
   static Future<List<Task>> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    if (raw == null) return [];
-    final List<dynamic> decoded = jsonDecode(raw) as List<dynamic>;
-    return decoded
-        .map((j) => Task.fromJson(j as Map<String, dynamic>))
-        .toList();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return [];
+    
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('tasks')
+        .get();
+        
+    return snapshot.docs.map((doc) => Task.fromJson(doc.data())).toList();
+  }
+  
+  static Future<String> shareTask(Task task) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return '';
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('shared_tasks')
+        .doc(task.id)
+        .set(task.toJson()..addAll({'sharedBy': user.uid}));
+    return 'https://tideapp.web.app/?sharedTask=${user.uid}/${task.id}';
   }
 }
 
@@ -175,6 +198,28 @@ class TideApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Intercept shared links via URL
+    final sharedTaskParam = Uri.base.queryParameters['sharedTask'];
+    if (sharedTaskParam != null && sharedTaskParam.contains('/')) {
+      final parts = sharedTaskParam.split('/');
+      return MaterialApp(
+        title: 'Tide Shared Task',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.dark,
+          scaffoldBackgroundColor: GlassColors.bgDeep,
+          colorScheme: const ColorScheme.dark(
+            primary: GlassColors.cyan,
+            secondary: GlassColors.violet,
+            surface: GlassColors.bgMid,
+          ),
+          fontFamily: 'Inter',
+        ),
+        home: SharedTaskViewScreen(userId: parts[0], taskId: parts[1]),
+      );
+    }
+
     return MaterialApp(
       title: 'Tide',
       debugShowCheckedModeBanner: false,
@@ -189,7 +234,21 @@ class TideApp extends StatelessWidget {
         ),
         fontFamily: 'Inter',
       ),
-      home: const OnboardingScreen(),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          if (snapshot.hasData) {
+            return MainNavigationShell(
+              userName: snapshot.data?.displayName ?? 'User',
+              userEmail: snapshot.data?.email ?? '',
+            );
+          }
+          return const OnboardingScreen();
+        },
+      ),
     );
   }
 }
@@ -653,31 +712,67 @@ class _LoginScreenState extends State<LoginScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isLogin = true;
+  bool _isLoading = false;
 
-  void _handleSignIn() {
+  Future<void> _handleAuth() async {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please enter name, email and password.'),
-          backgroundColor: GlassColors.coral,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
+    if (email.isEmpty || password.isEmpty || (!_isLogin && name.isEmpty)) {
+      _showError('Please fill in all fields.');
       return;
     }
 
-    // Route to Core App Shell on verification
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MainNavigationShell(userName: name, userEmail: email),
+    setState(() => _isLoading = true);
+    try {
+      if (_isLogin) {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      } else {
+        final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+        await cred.user?.updateDisplayName(name);
+      }
+      
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MainNavigationShell(
+            userName: _isLogin ? (FirebaseAuth.instance.currentUser?.displayName ?? 'User') : name,
+            userEmail: email,
+          ),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String msg = 'Authentication failed.';
+      if (e.code == 'email-already-in-use') {
+        msg = 'The email is already in use.';
+      } else if (e.code == 'weak-password') {
+        msg = 'The password is too weak.';
+      } else if (e.code == 'invalid-credential') {
+        msg = 'Invalid email or password.';
+      }
+      _showError(msg);
+    } catch (e) {
+      _showError(e.toString());
+    }
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: GlassColors.coral,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -706,108 +801,65 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: GlassColors.textPrimary,
-                          size: 20,
-                        ),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: GlassColors.textPrimary, size: 20),
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Sign In',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: GlassColors.textPrimary,
-                        ),
+                      Text(
+                        _isLogin ? 'Sign In' : 'Register',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: GlassColors.textPrimary),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 32),
-                const Text(
-                  'Welcome\nBack',
-                  style: TextStyle(
-                    fontSize: 42,
-                    fontWeight: FontWeight.w800,
-                    color: GlassColors.textPrimary,
-                    height: 1.1,
-                    letterSpacing: 0,
-                  ),
+                Text(
+                  _isLogin ? 'Welcome\nBack' : 'Create\nAccount',
+                  style: const TextStyle(fontSize: 42, fontWeight: FontWeight.w800, color: GlassColors.textPrimary, height: 1.1),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Sign in to continue tracking your daily task flow.',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: GlassColors.textMuted,
-                    height: 1.5,
-                  ),
+                Text(
+                  _isLogin ? 'Sign in to continue tracking your daily task flow.' : 'Register to unlock cloud sync and sharing features.',
+                  style: const TextStyle(fontSize: 15, color: GlassColors.textMuted, height: 1.5),
                 ),
                 const SizedBox(height: 36),
-                // Glass form card
                 GlassCard(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _fieldLabel('FULL NAME'),
-                      const SizedBox(height: 8),
-                      GlassTextField(
-                        controller: _nameController,
-                        hintText: 'John Doe',
-                        keyboardType: TextInputType.name,
-                      ),
-                      const SizedBox(height: 20),
+                      if (!_isLogin) ...[
+                        _fieldLabel('FULL NAME'),
+                        const SizedBox(height: 8),
+                        GlassTextField(controller: _nameController, hintText: 'John Doe', keyboardType: TextInputType.name),
+                        const SizedBox(height: 20),
+                      ],
                       _fieldLabel('EMAIL ADDRESS'),
                       const SizedBox(height: 8),
-                      GlassTextField(
-                        controller: _emailController,
-                        hintText: 'name@example.com',
-                        keyboardType: TextInputType.emailAddress,
-                      ),
+                      GlassTextField(controller: _emailController, hintText: 'name@example.com', keyboardType: TextInputType.emailAddress),
                       const SizedBox(height: 20),
                       _fieldLabel('PASSWORD'),
                       const SizedBox(height: 8),
-                      GlassTextField(
-                        controller: _passwordController,
-                        hintText: '••••••••',
-                        obscureText: true,
-                      ),
+                      GlassTextField(controller: _passwordController, hintText: '••••••••', obscureText: true),
                     ],
                   ),
                 ),
                 const SizedBox(height: 28),
-                _GlowButton(label: 'Sign In', onPressed: _handleSignIn),
+                _isLoading 
+                  ? const Center(child: CircularProgressIndicator(color: GlassColors.cyan))
+                  : _GlowButton(label: _isLogin ? 'Sign In' : 'Register', onPressed: _handleAuth),
                 const SizedBox(height: 20),
                 Center(
                   child: TextButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Registration coming soon! 🌊'),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      );
-                    },
+                    onPressed: () => setState(() => _isLogin = !_isLogin),
                     child: RichText(
-                      text: const TextSpan(
-                        text: "Don't have an account? ",
-                        style: TextStyle(
-                          color: GlassColors.textMuted,
-                          fontSize: 14,
-                        ),
+                      text: TextSpan(
+                        text: _isLogin ? "Don't have an account? " : "Already have an account? ",
+                        style: const TextStyle(color: GlassColors.textMuted, fontSize: 14),
                         children: [
                           TextSpan(
-                            text: 'Sign Up',
-                            style: TextStyle(
-                              color: GlassColors.cyan,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            text: _isLogin ? 'Sign Up' : 'Sign In',
+                            style: const TextStyle(color: GlassColors.cyan, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -824,12 +876,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _fieldLabel(String text) => Text(
         text,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: GlassColors.textMuted,
-          letterSpacing: 0,
-        ),
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: GlassColors.textMuted),
       );
 }
 
@@ -1804,26 +1851,56 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               children: [
                 // ── Floating glass header
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Row(
+                      children: [
+                        GlassCard(
+                          borderRadius: 14,
+                          padding: EdgeInsets.zero,
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              color: GlassColors.textPrimary,
+                              size: 18,
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        const Text(
+                          'Task Details',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: GlassColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
                     GlassCard(
                       borderRadius: 14,
                       padding: EdgeInsets.zero,
                       child: IconButton(
                         icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
+                          Icons.share_rounded,
                           color: GlassColors.textPrimary,
                           size: 18,
                         ),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    const Text(
-                      'Task Details',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: GlassColors.textPrimary,
+                        onPressed: () async {
+                          final link = await TaskStorage.shareTask(task);
+                          await Clipboard.setData(ClipboardData(text: link));
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Share link copied to clipboard!'),
+                                backgroundColor: GlassColors.cyan,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            );
+                          }
+                        },
                       ),
                     ),
                   ],
@@ -2714,6 +2791,92 @@ class _FloatingChatWidgetState extends State<FloatingChatWidget> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── SHARED TASK VIEW SCREEN ────────────────────────────────────────────────
+class SharedTaskViewScreen extends StatelessWidget {
+  final String userId;
+  final String taskId;
+
+  const SharedTaskViewScreen({super.key, required this.userId, required this.taskId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: AnimatedBackground(
+        child: SafeArea(
+          child: FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance
+                .collection('users')
+                .doc(userId)
+                .collection('shared_tasks')
+                .doc(taskId)
+                .get(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: GlassColors.cyan));
+              }
+              if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
+                return const Center(child: Text('Task not found or access denied.', style: TextStyle(color: Colors.white)));
+              }
+              
+              final taskData = snapshot.data!.data() as Map<String, dynamic>;
+              final task = Task.fromJson(taskData);
+              
+              return Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Shared with you', style: TextStyle(color: GlassColors.textMuted, fontSize: 14)),
+                    const SizedBox(height: 20),
+                    GlassCard(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: task.categoryColor.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(task.category, style: TextStyle(fontSize: 10, color: task.categoryColor, fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: task.priorityColor.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text('${task.priority} Priority', style: TextStyle(fontSize: 10, color: task.priorityColor, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          Text(task.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: GlassColors.textPrimary)),
+                          const SizedBox(height: 16),
+                          Text('Due: ${task.dueDate.toIso8601String().split('T').first}', style: const TextStyle(color: GlassColors.textMuted)),
+                          const SizedBox(height: 16),
+                          const Divider(color: GlassColors.glassBorder),
+                          const SizedBox(height: 16),
+                          Text(task.notes.isEmpty ? 'No notes provided.' : task.notes, style: const TextStyle(color: GlassColors.textPrimary, fontSize: 14)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
