@@ -171,6 +171,17 @@ class TaskStorage {
     await batch.commit();
   }
 
+  static Future<void> delete(Task task) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('tasks')
+        .doc(task.id)
+        .delete();
+  }
+
   static Future<List<Task>> load() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return [];
@@ -916,87 +927,19 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   }
 
   Future<void> _loadTasks() async {
-    final saved = await TaskStorage.load();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final saved = await TaskStorage.load();
+      setState(() {
+        if (saved.isNotEmpty) {
+          _globalTasks.addAll(saved);
+        }
+      });
+    }
     setState(() {
-      if (saved.isNotEmpty) {
-        _globalTasks.addAll(saved);
-      } else {
-        _globalTasks.addAll(_defaultTasks());
-      }
       _isLoading = false;
     });
   }
-
-  List<Task> _defaultTasks() => [
-        Task(
-          id: '1',
-          title: 'Morning beach walk & meditation',
-          category: 'Today',
-          priority: 'Low',
-          dueDate: DateTime.now(),
-          notes:
-              'Take a 30-minute peaceful walk along the shoreline. Practice deep breathing.',
-        ),
-        Task(
-          id: '2',
-          title: 'Plan summer team retreat',
-          category: 'Work',
-          priority: 'High',
-          dueDate: DateTime.now().add(const Duration(days: 4)),
-          notes:
-              'Prepare the outline budget, dates, and look into booking a coastal lodge.',
-        ),
-        Task(
-          id: '3',
-          title: 'Water the patio ferns',
-          category: 'Personal',
-          priority: 'Low',
-          dueDate: DateTime.now(),
-          notes: 'Make sure soil is evenly damp. Add balanced fertilizer.',
-        ),
-        Task(
-          id: '4',
-          title: 'Sync with design team on Tide UI',
-          category: 'Work',
-          priority: 'Med',
-          dueDate: DateTime.now().add(const Duration(days: 1)),
-          notes:
-              'Confirm hex mapping tokens and discuss feedback on card components.',
-        ),
-        Task(
-          id: '5',
-          title: 'Review Flutter architecture docs',
-          category: 'Study',
-          priority: 'Med',
-          dueDate: DateTime.now().add(const Duration(days: 2)),
-          notes: 'Deep dive into state management patterns and best practices.',
-        ),
-        Task(
-          id: '6',
-          title: 'Write Flutter unit tests',
-          category: 'Work',
-          priority: 'High',
-          dueDate: DateTime.now().add(const Duration(days: 2)),
-          notes:
-              'Create smoke and regression checks covering onboarding and navigation.',
-        ),
-        Task(
-          id: '7',
-          title: 'Evening yoga session',
-          category: 'Today',
-          priority: 'Low',
-          dueDate: DateTime.now(),
-          notes: 'Unwind with a 40-minute ocean-side yoga routine.',
-        ),
-        Task(
-          id: '8',
-          title: 'Study data structures — Chapter 5',
-          category: 'Study',
-          priority: 'High',
-          dueDate: DateTime.now().add(const Duration(days: 3)),
-          notes: 'Focus on trees and graphs for upcoming exam prep.',
-        ),
-      ];
 
   Future<void> _persistTasks() => TaskStorage.save(_globalTasks);
 
@@ -1054,6 +997,12 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   setState(() {});
                   await _persistTasks();
                 },
+                onDelete: () async {
+                  setState(() => _globalTasks.remove(task));
+                  await TaskStorage.delete(task);
+                  if (!context.mounted) return;
+                  Navigator.pop(context);
+                },
               ),
             ),
           );
@@ -1067,7 +1016,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         },
         onDelete: (task) async {
           setState(() => _globalTasks.remove(task));
-          await _persistTasks();
+          await TaskStorage.delete(task); // Actually delete from backend
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1095,6 +1044,12 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                 onChanged: (_) async {
                   setState(() {});
                   await _persistTasks();
+                },
+                onDelete: () async {
+                  setState(() => _globalTasks.remove(task));
+                  await TaskStorage.delete(task);
+                  if (!context.mounted) return;
+                  Navigator.pop(context);
                 },
               ),
             ),
@@ -1813,11 +1768,13 @@ class _TaskListScreenTabState extends State<TaskListScreenTab> {
 class TaskDetailScreen extends StatefulWidget {
   final Task task;
   final Function(Task) onChanged;
+  final Function() onDelete;
 
   const TaskDetailScreen({
     super.key,
     required this.task,
     required this.onChanged,
+    required this.onDelete,
   });
 
   @override
@@ -1883,30 +1840,49 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ),
                       ],
                     ),
-                    GlassCard(
-                      borderRadius: 14,
-                      padding: EdgeInsets.zero,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.share_rounded,
-                          color: GlassColors.textPrimary,
-                          size: 18,
+                    Row(
+                      children: [
+                        GlassCard(
+                          borderRadius: 14,
+                          padding: EdgeInsets.zero,
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: Colors.redAccent,
+                              size: 18,
+                            ),
+                            onPressed: () {
+                              widget.onDelete();
+                            },
+                          ),
                         ),
-                        onPressed: () async {
-                          final link = await TaskStorage.shareTask(task);
-                          await Clipboard.setData(ClipboardData(text: link));
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text('Share link copied to clipboard!'),
-                                backgroundColor: GlassColors.cyan,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            );
-                          }
-                        },
-                      ),
+                        const SizedBox(width: 12),
+                        GlassCard(
+                          borderRadius: 14,
+                          padding: EdgeInsets.zero,
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.share_rounded,
+                              color: GlassColors.textPrimary,
+                              size: 18,
+                            ),
+                            onPressed: () async {
+                              final link = await TaskStorage.shareTask(task);
+                              await Clipboard.setData(ClipboardData(text: link));
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text('Share link copied to clipboard!'),
+                                    backgroundColor: GlassColors.cyan,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
