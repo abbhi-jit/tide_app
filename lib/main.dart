@@ -2581,9 +2581,9 @@ class SettingsScreenTab extends StatelessWidget {
   }
 }
 
-// ── GOOGLE GENERATIVE AI ASSISTANT SERVICE ──────────────────────────────────
+// ── OPENROUTER AI ASSISTANT SERVICE ───────────────────────────────────────────
 class AssistantService {
-  static const _apiKey = 'AQ.Ab8RN6JqFLFQR2dZ2_XcycdjiHGl6GG0KYqgFHSuCewsTVk8Rg';
+  static const _apiKey = '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';
 
   static Future<String> sendMessage(String message) async {
     try {
@@ -2592,40 +2592,39 @@ class AssistantService {
           ? 'The user currently has no tasks.'
           : 'User tasks:\n${tasks.map((t) => '- [${t.category}] ${t.title} (Due: ${t.dueDate.toIso8601String().split('T').first}, Done: ${t.isDone})').join('\n')}';
 
-      final prompt = 'App Context:\n$contextText\n\nUser Message: $message';
-      
-      final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=$_apiKey');
+      final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
       
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_apiKey',
+          'HTTP-Referer': 'https://abbhi-jit.github.io/tide_app/',
+          'X-Title': 'Tide App',
         },
         body: jsonEncode({
-          'contents': [
+          'model': 'meta-llama/llama-3-8b-instruct:free',
+          'messages': [
             {
-              'parts': [
-                {'text': prompt}
-              ]
+              'role': 'system',
+              'content': 'You are a helpful, concise AI assistant built directly into the Tide task management app. '
+                         'Your job is to assist the user with managing their tasks and schedule. '
+                         'You will be provided with the user\'s current tasks in the system context. '
+                         'Base all your summaries and answers strictly on the app data provided.\n\n'
+                         'App Context:\n$contextText'
+            },
+            {
+              'role': 'user',
+              'content': message
             }
-          ],
-          'systemInstruction': {
-            'parts': [
-              {
-                'text': 'You are a helpful, concise AI assistant built directly into the Tide task management app. '
-                        'Your job is to assist the user with managing their tasks and schedule. '
-                        'You will be provided with the user\'s current tasks in the system context. '
-                        'Base all your summaries and answers strictly on the app data provided.'
-              }
-            ]
-          }
+          ]
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['candidates'] != null && data['candidates'].isNotEmpty) {
-          return data['candidates'][0]['content']['parts'][0]['text'] ?? 'No response.';
+        if (data['choices'] != null && data['choices'].isNotEmpty) {
+          return data['choices'][0]['message']['content'] ?? 'No response.';
         }
         return 'No response generated.';
       } else {
