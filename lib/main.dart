@@ -4,7 +4,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -2580,39 +2581,48 @@ class SettingsScreenTab extends StatelessWidget {
   }
 }
 
-// ── GOOGLE GENERATIVE AI ASSISTANT SERVICE ──────────────────────────────────
+// ── GROQ AI ASSISTANT SERVICE ────────────────────────────────────────────────
 class AssistantService {
-  // Hardcoded API key as requested by the user
-  static const _apiKey = 'AQ.Ab8RN6JqFLFQR2dZ2_XcycdjiHGl6GG0KYqgFHSuCewsTVk8Rg';
-
-  static final _model = GenerativeModel(
-    model: 'gemini-flash-latest',
-    apiKey: _apiKey,
-    systemInstruction: Content.system(
-      'You are a helpful, concise AI assistant built directly into the Tide task management app. '
-      'Your job is to assist the user with managing their tasks and schedule. '
-      'You will be provided with the user\'s current tasks in the system context. '
-      'Base all your summaries and answers strictly on the app data provided.',
-    ),
-  );
+  static const _apiKey = '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';
 
   static Future<String> sendMessage(String message) async {
-    if (_apiKey.isEmpty || _apiKey == 'YOUR_GEMINI_API_KEY_HERE') {
-      return 'API Key is missing. Ensure you run the app with --dart-define=GEMINI_API_KEY=YOUR_KEY';
-    }
-
     try {
       final tasks = await TaskStorage.load();
       final contextText = tasks.isEmpty
           ? 'The user currently has no tasks.'
           : 'User tasks:\n${tasks.map((t) => '- [${t.category}] ${t.title} (Due: ${t.dueDate.toIso8601String().split('T').first}, Done: ${t.isDone})').join('\n')}';
 
-      final prompt = 'App Context:\n$contextText\n\nUser Message: $message';
-      final response = await _model.generateContent([Content.text(prompt)]);
-      return response.text ?? 'I could not generate a response.';
+      final response = await http.post(
+        Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_apiKey',
+        },
+        body: jsonEncode({
+          'model': 'llama-3.1-8b-instant',
+          'messages': [
+            {
+              'role': 'system',
+              'content': 'You are a helpful, concise AI assistant built into the Tide task management app. Help the user manage their tasks and schedule. App Context:\n$contextText',
+            },
+            {
+              'role': 'user',
+              'content': message,
+            },
+          ],
+          'max_tokens': 512,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['choices'][0]['message']['content'] ?? 'No response.';
+      } else {
+        return 'Error ${response.statusCode}: ${response.body}';
+      }
     } catch (e) {
-      debugPrint('AI Error: $e');
-      return 'Sorry, I encountered an error: $e';
+      debugPrint('AI Error: \$e');
+      return 'Sorry, I encountered an error: \$e';
     }
   }
 }
