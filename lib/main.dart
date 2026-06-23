@@ -2592,18 +2592,22 @@ class AssistantService {
           ? 'The user currently has no tasks.'
           : 'User tasks:\n${tasks.map((t) => '- [${t.category}] ${t.title} (Due: ${t.dueDate.toIso8601String().split('T').first}, Done: ${t.isDone})').join('\n')}';
 
-      final response = await http.post(
-        Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_apiKey',
-        },
-        body: jsonEncode({
+      final client = http.Client();
+      try {
+        final request = http.Request(
+          'POST',
+          Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+        );
+        request.headers['Content-Type'] = 'application/json';
+        request.headers['Authorization'] = 'Bearer $_apiKey';
+        request.body = jsonEncode({
           'model': 'llama-3.1-8b-instant',
           'messages': [
             {
               'role': 'system',
-              'content': 'You are a helpful, concise AI assistant built into the Tide task management app. Help the user manage their tasks and schedule. App Context:\n$contextText',
+              'content':
+                  'You are a helpful, concise AI assistant built into the Tide task management app. '
+                  'Help the user manage their tasks and schedule. App Context:\n$contextText',
             },
             {
               'role': 'user',
@@ -2611,18 +2615,24 @@ class AssistantService {
             },
           ],
           'max_tokens': 512,
-        }),
-      );
+        });
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['choices'][0]['message']['content'] ?? 'No response.';
-      } else {
-        return 'Error ${response.statusCode}: ${response.body}';
+        final streamedResponse = await client.send(request);
+        final response = await http.Response.fromStream(streamedResponse);
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return data['choices'][0]['message']['content'] ?? 'No response.';
+        } else {
+          debugPrint('Groq error body: ${response.body}');
+          return 'Error ${response.statusCode}: ${response.body}';
+        }
+      } finally {
+        client.close();
       }
     } catch (e) {
-      debugPrint('AI Error: \$e');
-      return 'Sorry, I encountered an error: \$e';
+      debugPrint('AI Error: $e');
+      return 'Sorry, I encountered an error: $e';
     }
   }
 }

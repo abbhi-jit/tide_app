@@ -14,7 +14,7 @@ jobs:
         with:
           channel: 'stable'
       - run: flutter pub get
-      - run: flutter build web --base-href /tide_app/
+      - run: flutter build web --base-href /tide_app/ --web-renderer html
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
