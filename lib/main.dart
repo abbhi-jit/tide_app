@@ -4,7 +4,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -2584,17 +2585,6 @@ class SettingsScreenTab extends StatelessWidget {
 class AssistantService {
   static const _apiKey = 'AQ.Ab8RN6JqFLFQR2dZ2_XcycdjiHGl6GG0KYqgFHSuCewsTVk8Rg';
 
-  static final _model = GenerativeModel(
-    model: 'gemini-flash-latest',
-    apiKey: _apiKey,
-    systemInstruction: Content.system(
-      'You are a helpful, concise AI assistant built directly into the Tide task management app. '
-      'Your job is to assist the user with managing their tasks and schedule. '
-      'You will be provided with the user\'s current tasks in the system context. '
-      'Base all your summaries and answers strictly on the app data provided.',
-    ),
-  );
-
   static Future<String> sendMessage(String message) async {
     try {
       final tasks = await TaskStorage.load();
@@ -2603,8 +2593,44 @@ class AssistantService {
           : 'User tasks:\n${tasks.map((t) => '- [${t.category}] ${t.title} (Due: ${t.dueDate.toIso8601String().split('T').first}, Done: ${t.isDone})').join('\n')}';
 
       final prompt = 'App Context:\n$contextText\n\nUser Message: $message';
-      final response = await _model.generateContent([Content.text(prompt)]);
-      return response.text ?? 'I could not generate a response.';
+      
+      final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=$_apiKey');
+      
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'contents': [
+            {
+              'parts': [
+                {'text': prompt}
+              ]
+            }
+          ],
+          'systemInstruction': {
+            'parts': [
+              {
+                'text': 'You are a helpful, concise AI assistant built directly into the Tide task management app. '
+                        'Your job is to assist the user with managing their tasks and schedule. '
+                        'You will be provided with the user\'s current tasks in the system context. '
+                        'Base all your summaries and answers strictly on the app data provided.'
+              }
+            ]
+          }
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['candidates'] != null && data['candidates'].isNotEmpty) {
+          return data['candidates'][0]['content']['parts'][0]['text'] ?? 'No response.';
+        }
+        return 'No response generated.';
+      } else {
+        return 'Error ${response.statusCode}: ${response.body}';
+      }
     } catch (e) {
       debugPrint('AI Error: $e');
       return 'Sorry, I encountered an error: $e';
