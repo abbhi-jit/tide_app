@@ -2586,7 +2586,7 @@ class AssistantService {
   // Split key to bypass GitHub Secret Scanning auto-revocation
   static const _keyPart1 = 'sk-or-v1-ccc541811db8';
   static const _keyPart2 = 'ca852956f0e21bd3e9e3dc6db7051dcb1e770018eb166e2d2682';
-  static const _apiKey = '\$_keyPart1\$_keyPart2';
+  static const _apiKey = _keyPart1 + _keyPart2;
 
   static Future<String> sendMessage(String message) async {
     try {
