@@ -30605,7 +30605,7 @@ $S:2}
 A.aBl.prototype={
 $1(a){var s=A.dv().b
 s=s==null?null:s.canvasKitBaseUrl
-return(s==null?"https://www.gstatic.com/flutter-canvaskit/77e2e94772b6eb43759e34ed1ad7da4674e19cab/":s)+a},
+return(s==null?"https://www.gstatic.com/flutter-canvaskit/a4ce257c68517c1410f4b48ac9852ab5642a3f8d/":s)+a},
 $S:56}
 A.Mo.prototype={
 a_0(){var s=this.ahJ(),r=$.aV.b7().ImageFilter.MakeColorFilter(s,null)
@@ -104705,7 +104705,7 @@ s($,"b7u","aHm",()=>A.aZ6())
 s($,"b6V","cw",()=>A.ix())
 s($,"b7o","aRi",()=>new A.t())
 s($,"b50","aQ8",()=>{var q=null,p=A.aUa("system",A.b([A.aZp("You are a helpful, concise AI assistant built directly into the Tide task management app. Your job is to assist the user with managing their tasks and schedule. You will be provided with the user's current tasks in the system context. Base all your summaries and answers strictly on the app data provided.")],t.Uz)),o=A.b0o("https","generativelanguage.googleapis.com","v1beta",q)
-return new A.a9X(A.aW1("gemini-1.5-flash"),B.L6,q,q,new A.ab2("AQ.Ab8RN6KnTc87y0JXJmx-5AkBGqx80x-g5oGWkmygRZJl3HQYkA",q),o,p,q)})})();(function nativeSupport(){!function(){var s=function(a){var m={}
+return new A.a9X(A.aW1("gemini-flash-latest"),B.L6,q,q,new A.ab2("AQ.Ab8RN6JqFLFQR2dZ2_XcycdjiHGl6GG0KYqgFHSuCewsTVk8Rg",q),o,p,q)})})();(function nativeSupport(){!function(){var s=function(a){var m={}
 m[a]=1
 return Object.keys(hunkHelpers.convertToFastObject(m))[0]}
 v.getIsolateTag=function(a){return s("___dart_"+a+v.isolateTag)}
