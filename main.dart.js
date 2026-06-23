@@ -28879,7 +28879,7 @@ case 7:n=c
 m=J.tI(n)?"The user currently has no tasks.":"User tasks:\n"+J.hy(n,new A.a2H(),t.N).aQ(0,"\n")
 l=A.iL("https://openrouter.ai/api/v1/chat/completions")
 h=t.N
-g=A.as(["Content-Type","application/json","Authorization","Bearer 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","HTTP-Referer","https://abbhi-jit.github.io/tide_app/","X-Title","Tide App"],h,h)
+g=A.as(["Content-Type","application/json","Authorization","Bearer $_keyPart1$_keyPart2","HTTP-Referer","https://abbhi-jit.github.io/tide_app/","X-Title","Tide App"],h,h)
 s=8
 return A.E(A.b2V(l,B.dE.YD(A.as(["model","meta-llama/llama-3-8b-instruct:free","messages",A.b([A.as(["role","system","content","You are a helpful, concise AI assistant built directly into the Tide task management app. Your job is to assist the user with managing their tasks and schedule. You will be provided with the user's current tasks in the system context. Base all your summaries and answers strictly on the app data provided.\n\nApp Context:\n"+A.j(m)],h,h),A.as(["role","user","content",a],h,h)],t.m0)],h,t.K),null),g),$async$Lf)
 case 8:k=c
