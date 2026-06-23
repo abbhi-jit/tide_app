@@ -2583,10 +2583,10 @@ class SettingsScreenTab extends StatelessWidget {
 // ── GOOGLE GENERATIVE AI ASSISTANT SERVICE ──────────────────────────────────
 class AssistantService {
   // Hardcoded API key as requested by the user
-  static const _apiKey = 'AQ.Ab8RN6KnTc87y0JXJmx-5AkBGqx80x-g5oGWkmygRZJl3HQYkA';
+  static const _apiKey = 'AQ.Ab8RN6JqFLFQR2dZ2_XcycdjiHGl6GG0KYqgFHSuCewsTVk8Rg';
 
   static final _model = GenerativeModel(
-    model: 'gemini-1.5-flash',
+    model: 'gemini-flash-latest',
     apiKey: _apiKey,
     systemInstruction: Content.system(
       'You are a helpful, concise AI assistant built directly into the Tide task management app. '
