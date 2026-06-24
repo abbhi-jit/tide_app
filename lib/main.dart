@@ -3,7 +3,9 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
@@ -2745,38 +2747,81 @@ class _FloatingChatWidgetState extends State<FloatingChatWidget> {
                   return Align(
                     alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                     child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: isUser 
-                          ? GlassColors.cyan.withValues(alpha: 0.2)
-                          : GlassColors.glassFill,
-                        borderRadius: BorderRadius.circular(16),
+                          ? GlassColors.cyan.withValues(alpha: 0.25)
+                          : GlassColors.bgOcean.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(16),
+                          topRight: const Radius.circular(16),
+                          bottomLeft: isUser ? const Radius.circular(16) : const Radius.circular(4),
+                          bottomRight: isUser ? const Radius.circular(4) : const Radius.circular(16),
+                        ),
                         border: Border.all(
                           color: isUser 
-                            ? GlassColors.cyan.withValues(alpha: 0.4)
+                            ? GlassColors.cyan.withValues(alpha: 0.5)
                             : GlassColors.glassBorder,
                         ),
                       ),
-                      child: Text(
-                        msg['text'] ?? '',
-                        style: const TextStyle(
-                          color: GlassColors.textPrimary,
-                          fontSize: 14,
-                        ),
-                      ),
+                      child: isUser
+                        ? Text(
+                            msg['text'] ?? '',
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                          )
+                        : MarkdownBody(
+                            data: msg['text'] ?? '',
+                            styleSheet: MarkdownStyleSheet(
+                              p: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+                              strong: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              em: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic),
+                              listBullet: const TextStyle(color: GlassColors.cyan),
+                              code: TextStyle(
+                                backgroundColor: Colors.black.withValues(alpha: 0.3),
+                                color: GlassColors.cyan,
+                                fontFamily: 'monospace',
+                              ),
+                              codeblockDecoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
                     ),
                   );
                 },
               ),
             ),
             if (_isLoading)
-              const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: SizedBox(
-                  width: 20, 
-                  height: 20, 
-                  child: CircularProgressIndicator(strokeWidth: 2, color: GlassColors.violet)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12, top: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: GlassColors.bgOcean.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: GlassColors.glassBorder),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2, 
+                          color: GlassColors.cyan
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'AI is typing...', 
+                        style: TextStyle(color: GlassColors.textMuted, fontSize: 13, fontStyle: FontStyle.italic)
+                      ),
+                    ],
+                  ),
                 ),
               ),
             const SizedBox(height: 8),
