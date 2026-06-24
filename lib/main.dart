@@ -2607,7 +2607,7 @@ class AssistantService {
           'X-Title': 'Tide App',
         },
         body: jsonEncode({
-          'model': 'google/gemma-2-9b-it:free',
+          'model': 'openrouter/free',
           'messages': [
             {
               'role': 'system',
