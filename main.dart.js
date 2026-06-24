@@ -28881,7 +28881,7 @@ l=A.iM("https://openrouter.ai/api/v1/chat/completions")
 h=t.N
 g=A.as(["Content-Type","application/json","Authorization","Bearer "+A.i0(new A.c0(new A.fH("2862d2e661be810077e1bcd1507bd6cd3e9e3db12e0f659258ac8bd118145ccc-1v-ro-ks"),t.Hz.i("c0<aJ.E>")),0,null),"HTTP-Referer","https://abbhi-jit.github.io/tide_app/","X-Title","Tide App"],h,h)
 s=8
-return A.E(A.b2V(l,B.dE.YE(A.as(["model","google/gemma-2-9b-it:free","messages",A.b([A.as(["role","system","content","You are a helpful, concise AI assistant built directly into the Tide task management app. Your job is to assist the user with managing their tasks and schedule. You will be provided with the user's current tasks in the system context. Base all your summaries and answers strictly on the app data provided.\n\nApp Context:\n"+A.j(m)],h,h),A.as(["role","user","content",a],h,h)],t.m0)],h,t.K),null),g),$async$Lf)
+return A.E(A.b2V(l,B.dE.YE(A.as(["model","openrouter/free","messages",A.b([A.as(["role","system","content","You are a helpful, concise AI assistant built directly into the Tide task management app. Your job is to assist the user with managing their tasks and schedule. You will be provided with the user's current tasks in the system context. Base all your summaries and answers strictly on the app data provided.\n\nApp Context:\n"+A.j(m)],h,h),A.as(["role","user","content",a],h,h)],t.m0)],h,t.K),null),g),$async$Lf)
 case 8:k=c
 if(k.b===200){h=k
 j=B.dE.Y4(A.aOl(A.aNa(h.e)).h1(h.w),null)
