@@ -1090,7 +1090,12 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            const FloatingChatWidget(),
+            FloatingChatWidget(
+              onAddTask: (task) async {
+                setState(() => _globalTasks.insert(0, task));
+                await _persistTasks();
+              },
+            ),
             const SizedBox(height: 12),
             GlassCard(
               borderRadius: 20,
@@ -2723,7 +2728,9 @@ class AssistantService {
           'content': 'You are a helpful, concise AI assistant built directly into the Tide task management app. '
                      'Your job is to assist the user with managing their tasks and schedule. '
                      'You will be provided with the user\'s current tasks in the system context. '
-                     'Base all your summaries and answers strictly on the app data provided.\n\n'
+                     'Base all your summaries and answers strictly on the app data provided.\n'
+                     'If the user asks you to create or add a task, you MUST output ONLY a JSON block in this exact format, with no extra text: '
+                     '[CREATE_TASK] {"title": "Task title", "category": "Work/Personal/Study/Health/Finance/Today", "priority": "High/Med/Low"}\n\n'
                      'App Context:\n$contextText'
         },
         ...history.map((m) => {
@@ -2764,7 +2771,8 @@ class AssistantService {
 
 // ── FLOATING CHAT WIDGET ────────────────────────────────────────────────────
 class FloatingChatWidget extends StatefulWidget {
-  const FloatingChatWidget({super.key});
+  final Function(Task)? onAddTask;
+  const FloatingChatWidget({super.key, this.onAddTask});
 
   @override
   State<FloatingChatWidget> createState() => _FloatingChatWidgetState();
@@ -2790,8 +2798,30 @@ class _FloatingChatWidgetState extends State<FloatingChatWidget> {
 
     final response = await AssistantService.sendMessage(_messages);
 
+    String displayText = response;
+    if (response.contains('[CREATE_TASK]')) {
+      try {
+        final jsonStr = response.split('[CREATE_TASK]')[1].trim();
+        final map = jsonDecode(jsonStr);
+        if (widget.onAddTask != null) {
+          final newTask = Task(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            title: map['title'] ?? 'New AI Task',
+            priority: map['priority'] ?? 'Med',
+            category: map['category'] ?? 'Today',
+            dueDate: DateTime.now(),
+          );
+          widget.onAddTask!(newTask);
+          displayText = "I've added '${newTask.title}' to your tasks!";
+        }
+      } catch (e) {
+        debugPrint('Failed to parse AI task creation: $e');
+        displayText = "I tried to create the task, but encountered an error parsing the data.";
+      }
+    }
+
     setState(() {
-      _messages.add({'role': 'ai', 'text': response});
+      _messages.add({'role': 'ai', 'text': displayText});
       _isLoading = false;
     });
   }
