@@ -61,6 +61,8 @@ class GlassColors {
   static const Color catWork = Color(0xFF7B61FF);
   static const Color catPersonal = Color(0xFFFF6B9D);
   static const Color catStudy = Color(0xFFFFB347);
+  static const Color catHealth = Color(0xFF4ECDC4);
+  static const Color catFinance = Color(0xFFFFD93D);
 
   // Priority colors
   static const Color priorityHigh = Color(0xFFFF6B6B);
@@ -96,7 +98,7 @@ class Task {
   String title;
   String notes;
   String priority; // 'High' | 'Med' | 'Low'
-  String category; // 'Today' | 'Work' | 'Personal' | 'Study'
+  String category; // 'Today' | 'Work' | 'Personal' | 'Study' | 'Health' | 'Finance'
   DateTime dueDate;
   bool isDone;
 
@@ -129,6 +131,10 @@ class Task {
         return GlassColors.catPersonal;
       case 'Study':
         return GlassColors.catStudy;
+      case 'Health':
+        return GlassColors.catHealth;
+      case 'Finance':
+        return GlassColors.catFinance;
       default:
         return GlassColors.catToday;
     }
@@ -1432,6 +1438,28 @@ class _TaskListScreenTabState extends State<TaskListScreenTab> {
   String _activeFilter = 'All';
   String _searchQuery = '';
   final _searchController = TextEditingController();
+  bool _isSearchingAI = false;
+  List<String>? _semanticIds;
+
+  Future<void> _performSemanticSearch(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        _searchQuery = '';
+        _semanticIds = null;
+      });
+      return;
+    }
+    setState(() {
+      _searchQuery = query;
+      _isSearchingAI = true;
+    });
+    final ids = await AssistantService.semanticSearch(query, widget.tasks);
+    if (!mounted) return;
+    setState(() {
+      _semanticIds = ids;
+      _isSearchingAI = false;
+    });
+  }
 
   static const Map<String, Color> _catColors = {
     'All': GlassColors.textPrimary,
@@ -1439,6 +1467,8 @@ class _TaskListScreenTabState extends State<TaskListScreenTab> {
     'Work': GlassColors.catWork,
     'Personal': GlassColors.catPersonal,
     'Study': GlassColors.catStudy,
+    'Health': GlassColors.catHealth,
+    'Finance': GlassColors.catFinance,
   };
 
   @override
@@ -1449,15 +1479,23 @@ class _TaskListScreenTabState extends State<TaskListScreenTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Apply category + real-time search filters
+    // Apply category + semantic search filters
     var filtered = _activeFilter == 'All'
         ? widget.tasks
         : widget.tasks.where((t) => t.category == _activeFilter).toList();
-    if (_searchQuery.isNotEmpty) {
+        
+    if (_semanticIds != null) {
+      final matched = <Task>[];
+      for (final id in _semanticIds!) {
+        try {
+          final t = filtered.firstWhere((t) => t.id == id);
+          matched.add(t);
+        } catch (_) {}
+      }
+      filtered = matched;
+    } else if (_searchQuery.isNotEmpty) {
       filtered = filtered
-          .where(
-            (t) => t.title.toLowerCase().contains(_searchQuery.toLowerCase()),
-          )
+          .where((t) => t.title.toLowerCase().contains(_searchQuery.toLowerCase()))
           .toList();
     }
 
@@ -1482,7 +1520,7 @@ class _TaskListScreenTabState extends State<TaskListScreenTab> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  // Real-time search bar
+                  // AI Semantic Search bar
                   ClipRRect(
                     borderRadius: BorderRadius.circular(14),
                     child: BackdropFilter(
@@ -1493,18 +1531,26 @@ class _TaskListScreenTabState extends State<TaskListScreenTab> {
                           color: GlassColors.textPrimary,
                           fontSize: 14,
                         ),
-                        onChanged: (v) => setState(() => _searchQuery = v),
+                        onSubmitted: _performSemanticSearch,
                         decoration: InputDecoration(
-                          hintText: 'Search tasks...',
+                          hintText: 'Ask AI to find tasks...',
                           hintStyle: const TextStyle(
                             color: GlassColors.textMuted,
                             fontSize: 14,
                           ),
-                          prefixIcon: const Icon(
-                            Icons.search_rounded,
-                            color: GlassColors.textMuted,
-                            size: 20,
-                          ),
+                          prefixIcon: _isSearchingAI
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    width: 16, height: 16,
+                                    child: CircularProgressIndicator(color: GlassColors.cyan, strokeWidth: 2),
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.auto_awesome_rounded,
+                                  color: GlassColors.cyan,
+                                  size: 20,
+                                ),
                           suffixIcon: _searchQuery.isNotEmpty
                               ? IconButton(
                                   icon: const Icon(
@@ -1514,7 +1560,10 @@ class _TaskListScreenTabState extends State<TaskListScreenTab> {
                                   ),
                                   onPressed: () {
                                     _searchController.clear();
-                                    setState(() => _searchQuery = '');
+                                    setState(() {
+                                      _searchQuery = '';
+                                      _semanticIds = null;
+                                    });
                                   },
                                 )
                               : null,
@@ -2015,8 +2064,8 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   final _titleController = TextEditingController();
   final _notesController = TextEditingController();
   String _selectedPriority = 'Med';
-  String _selectedCategory = 'Today';
   DateTime _selectedDate = DateTime.now();
+  bool _isSaving = false;
 
   static const Map<String, Color> _priorityColors = {
     'High': GlassColors.priorityHigh,
@@ -2050,7 +2099,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
-  void _handleSave() {
+  Future<void> _handleSave() async {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2065,13 +2114,18 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       );
       return;
     }
+
+    setState(() => _isSaving = true);
+    final autoCategory = await AssistantService.categorizeTask(title);
+
     widget.onSave(
       title,
       _notesController.text.trim(),
       _selectedPriority,
-      _selectedCategory,
+      autoCategory,
       _selectedDate,
     );
+    if (!mounted) return;
     Navigator.pop(context);
   }
 
@@ -2171,23 +2225,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                       .toList(),
                 ),
                 const SizedBox(height: 20),
-                _sectionLabel('CATEGORY'),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _categoryColors.entries
-                      .map(
-                        (e) => _glassPill(
-                          label: e.key,
-                          isSelected: _selectedCategory == e.key,
-                          color: e.value,
-                          onTap: () =>
-                              setState(() => _selectedCategory = e.key),
-                        ),
-                      )
-                      .toList(),
-                ),
+                // Removed category manual picker because it is AI-categorized
                 const SizedBox(height: 20),
                 _sectionLabel('DUE DATE'),
                 const SizedBox(height: 10),
@@ -2220,7 +2258,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   ),
                 ),
                 const SizedBox(height: 28),
-                _GlowButton(label: 'Save Task', onPressed: _handleSave),
+                _isSaving 
+                    ? const Center(child: CircularProgressIndicator(color: GlassColors.cyan))
+                    : _GlowButton(label: 'Save Task (AI Auto-Categorize)', onPressed: _handleSave),
               ],
             ),
           ),
@@ -2591,15 +2631,9 @@ class AssistantService {
     return String.fromCharCodes(reversed.codeUnits.reversed);
   }
 
-  static Future<String> sendMessage(String message) async {
+  static Future<String> categorizeTask(String title) async {
     try {
-      final tasks = await TaskStorage.load();
-      final contextText = tasks.isEmpty
-          ? 'The user currently has no tasks.'
-          : 'User tasks:\n${tasks.map((t) => '- [${t.category}] ${t.title} (Due: ${t.dueDate.toIso8601String().split('T').first}, Done: ${t.isDone})').join('\n')}';
-
       final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
-      
       final response = await http.post(
         url,
         headers: {
@@ -2613,17 +2647,102 @@ class AssistantService {
           'messages': [
             {
               'role': 'system',
-              'content': 'You are a helpful, concise AI assistant built directly into the Tide task management app. '
-                         'Your job is to assist the user with managing their tasks and schedule. '
-                         'You will be provided with the user\'s current tasks in the system context. '
-                         'Base all your summaries and answers strictly on the app data provided.\n\n'
-                         'App Context:\n$contextText'
+              'content': 'Categorize the following task into exactly one of these words: Work, Personal, Study, Health, Finance, Today. Respond with ONLY the single word, nothing else.'
             },
-            {
-              'role': 'user',
-              'content': message
-            }
+            {'role': 'user', 'content': title}
           ]
+        }),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['choices'] != null && data['choices'].isNotEmpty) {
+          final res = data['choices'][0]['message']['content'].toString().trim();
+          final valid = ['Work', 'Personal', 'Study', 'Health', 'Finance', 'Today'];
+          for (final v in valid) {
+            if (res.toLowerCase().contains(v.toLowerCase())) return v;
+          }
+        }
+      }
+      return 'Today';
+    } catch (e) {
+      return 'Today';
+    }
+  }
+
+  static Future<List<String>> semanticSearch(String query, List<Task> tasks) async {
+    try {
+      if (tasks.isEmpty) return [];
+      final tasksJson = tasks.map((t) => {'id': t.id, 'title': t.title, 'category': t.category}).toList();
+      
+      final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_apiKey',
+          'HTTP-Referer': 'https://abbhi-jit.github.io/tide_app/',
+          'X-Title': 'Tide App',
+        },
+        body: jsonEncode({
+          'model': 'openrouter/free',
+          'messages': [
+            {
+              'role': 'system',
+              'content': 'You are a semantic search engine. The user will provide a query. Filter and rank the following tasks by relevance to the query. Respond with a comma-separated list of the task "id"s ONLY, sorted by most relevant first. No explanations.\n\nTasks:\n${jsonEncode(tasksJson)}'
+            },
+            {'role': 'user', 'content': query}
+          ]
+        }),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['choices'] != null && data['choices'].isNotEmpty) {
+          final content = data['choices'][0]['message']['content'].toString();
+          return content.split(',').map((e) => e.trim().replaceAll('"', '').replaceAll('[', '').replaceAll(']', '')).where((e) => e.isNotEmpty).toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Search AI Error: $e');
+      return [];
+    }
+  }
+
+  static Future<String> sendMessage(List<Map<String, String>> history) async {
+    try {
+      final tasks = await TaskStorage.load();
+      final contextText = tasks.isEmpty
+          ? 'The user currently has no tasks.'
+          : 'User tasks:\n${tasks.map((t) => '- [${t.category}] ${t.title} (Due: ${t.dueDate.toIso8601String().split('T').first}, Done: ${t.isDone})').join('\n')}';
+
+      final url = Uri.parse('https://openrouter.ai/api/v1/chat/completions');
+      
+      final apiMessages = [
+        {
+          'role': 'system',
+          'content': 'You are a helpful, concise AI assistant built directly into the Tide task management app. '
+                     'Your job is to assist the user with managing their tasks and schedule. '
+                     'You will be provided with the user\'s current tasks in the system context. '
+                     'Base all your summaries and answers strictly on the app data provided.\n\n'
+                     'App Context:\n$contextText'
+        },
+        ...history.map((m) => {
+          'role': m['role'] == 'user' ? 'user' : 'assistant',
+          'content': m['text'] ?? ''
+        }),
+      ];
+
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_apiKey',
+          'HTTP-Referer': 'https://abbhi-jit.github.io/tide_app/',
+          'X-Title': 'Tide App',
+        },
+        body: jsonEncode({
+          'model': 'openrouter/free',
+          'messages': apiMessages
         }),
       );
 
@@ -2669,7 +2788,7 @@ class _FloatingChatWidgetState extends State<FloatingChatWidget> {
       _isLoading = true;
     });
 
-    final response = await AssistantService.sendMessage(text);
+    final response = await AssistantService.sendMessage(_messages);
 
     setState(() {
       _messages.add({'role': 'ai', 'text': response});
