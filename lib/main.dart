@@ -528,6 +528,7 @@ class GlassTextField extends StatelessWidget {
   final bool obscureText;
   final int maxLines;
   final bool autofocus;
+  final Function(String)? onSubmitted;
 
   const GlassTextField({
     super.key,
@@ -537,6 +538,7 @@ class GlassTextField extends StatelessWidget {
     this.obscureText = false,
     this.maxLines = 1,
     this.autofocus = false,
+    this.onSubmitted,
   });
 
   @override
@@ -551,6 +553,7 @@ class GlassTextField extends StatelessWidget {
           obscureText: obscureText,
           maxLines: maxLines,
           autofocus: autofocus,
+          onSubmitted: onSubmitted,
           style: const TextStyle(color: GlassColors.textPrimary, fontSize: 15),
           decoration: InputDecoration(
             hintText: hintText,
@@ -2981,6 +2984,7 @@ class _FloatingChatWidgetState extends State<FloatingChatWidget> {
                   child: GlassTextField(
                     controller: _controller,
                     hintText: 'Ask about tasks...',
+                    onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
                 const SizedBox(width: 8),
